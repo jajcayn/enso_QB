@@ -3,31 +3,40 @@ import itertools as it
 import copy
 
 
-def get_continuous_differences(list_phases, points = 3):
+def get_continuous_differences(list_phases, ratios = None, points = 3):
     cont_phases = copy.deepcopy(list_phases)
     pairs = list(it.combinations(cont_phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
     avg_diff = np.zeros((len(pairs), cont_phases[0].shape[0],))
     for t in range(cont_phases[0].shape[0]):
-        for cnt, pair in zip(range(len(pairs)), pairs):
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
             joint_min = np.amin([pair[0][t], pair[1][t]])
             # translate all to joint minimum
             for ph in pair:
                 ph -= (ph[t] - joint_min)
             # compute avg diff over points
-            avg_diff[cnt, t] = np.mean(np.abs(pair[0][max(t - points, 0) : min(t + points + 1, cont_phases[0].shape[0])] - pair[1][max(t - points, 0) : min(t + points + 1, cont_phases[0].shape[0])]))
+            avg_diff[cnt, t] = np.mean(np.abs(n*pair[0][max(t - points, 0) : min(t + points + 1, cont_phases[0].shape[0])] - 
+                m*pair[1][max(t - points, 0) : min(t + points + 1, cont_phases[0].shape[0])]))
 
     return np.mean(avg_diff, axis = 0)
 
 
-def get_circular_differences(list_phases, points = 3):
+def get_circular_differences(list_phases, ratios = None, points = 3):
     phases = copy.deepcopy(list_phases)
     pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
     avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
     weights = np.concatenate([ np.linspace(0,1,points+2), np.linspace(0,1,points+1, endpoint = False)[::-1] ])[1:-1]
     for t in range(phases[0].shape[0]):
-        for cnt, pair in zip(range(len(pairs)), pairs):
-            arg = np.abs(pair[0][max(t - points, 0) : min(t + points + 1, phases[0].shape[0])] - 
-                                                 pair[1][max(t - points, 0) : min(t + points + 1, phases[0].shape[0])])
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            arg = np.abs(n*pair[0][max(t - points, 0) : min(t + points + 1, phases[0].shape[0])] - 
+                                                 m*pair[1][max(t - points, 0) : min(t + points + 1, phases[0].shape[0])])
             avg_diff[cnt, t] = np.average(arg, weights = weights[:arg.shape[0]])
 #                                          weights = np.array(pascal(points*2)))
 
@@ -58,24 +67,34 @@ def synch_index_entropy(phase1, phase2, n, m, bins = 16):
     return (S_max - S) / S_max
 
 
-def get_entropy_synch_index(list_phases, points = 3, bins = 8):
+def get_entropy_synch_index(list_phases, ratios = None, points = 3, bins = 8):
     phases = copy.deepcopy(list_phases)
     pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
     avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
     for t in range(phases[0].shape[0]):
-        for cnt, pair in zip(range(len(pairs)), pairs):
-            avg_diff[cnt, t] = synch_index_entropy(pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])], pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])], 1, 1, bins = bins)
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[cnt, t] = synch_index_entropy(pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])], 
+                pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])], n, m, bins = bins)
 
     return np.mean(avg_diff, axis = 0)
 
 
-def get_circular_variance_index(list_phases, points = 3):
+def get_circular_variance_index(list_phases, ratios = None, points = 3):
     phases = copy.deepcopy(list_phases)
     pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
     avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
     for t in range(phases[0].shape[0]):
-        for cnt, pair in zip(range(len(pairs)), pairs):
-            avg_diff[cnt, t] = np.mean(np.exp(1j*np.abs(pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])] - pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])])))
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[cnt, t] = np.mean(np.exp(1j*np.abs(n*pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])] - 
+                m*pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])])))
 
     return np.mean(avg_diff, axis = 0)
 
@@ -97,15 +116,60 @@ def synch_index_strobo(phase1, phase2, n, m, no_bins = 4):
     return np.nanmean(np.abs(lambda_bins))
 
 
-def get_strobo_synch_index(list_phases, points = 3, bins = 16):
+def get_strobo_synch_index(list_phases, ratios = None, points = 3, bins = 16):
     import copy
     phases = copy.deepcopy(list_phases)
     pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
     avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
     for t in range(phases[0].shape[0]):
-        for cnt, pair in zip(range(len(pairs)), pairs):
-            avg_diff[cnt, t] = synch_index_strobo(pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])], pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])], 1, 1, no_bins = bins)
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[cnt, t] = synch_index_strobo(pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])], 
+                pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])], n, m, no_bins = bins)
 
     return np.mean(avg_diff, axis = 0)
+
+
+def get_gradient_index(list_phases, ratios = None, points = 3):
+    import copy
+    phases = copy.deepcopy(list_phases)
+    pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
+    avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
+    for t in range(phases[0].shape[0]):
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[cnt, t] = np.mean(np.gradient(n*pair[0][max(t - points,0) : min(t + points + 1, pair[0].shape[0])] - 
+                m*pair[1][max(t - points,0) : min(t + points + 1, pair[1].shape[0])]))
+
+    return np.abs(np.mean(avg_diff, axis = 0))
+
+
+def get_intermittent_gradient_index(list_phases, ratios = None, include_second_order = False):
+    import copy
+    phases = copy.deepcopy(list_phases)
+    pairs = list(it.combinations(phases, 2))
+    if ratios is None:
+        ratios = [[1,1] for i in range(len(pairs))]
+    else:
+        ratios = list(it.combinations(ratios, 2))
+    if not include_second_order:
+        avg_diff = np.zeros((len(pairs), phases[0].shape[0],))
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[cnt, :] = np.gradient(n*pair[0] - m*pair[1])
+    else:
+        avg_diff = np.zeros((2*len(pairs), phases[0].shape[0],))
+        for cnt, pair, (n, m) in zip(range(len(pairs)), pairs, ratios):
+            avg_diff[2*cnt, :] = np.gradient(n*pair[0] - m*pair[1])
+            avg_diff[2*cnt+1, :] = np.gradient(np.gradient(n*pair[0] - m*pair[1]))
+
+
+    return np.abs(np.mean(avg_diff, axis = 0))
+
 
         

@@ -91,9 +91,10 @@ def get_cycles_and_phases(periods):
     return cycles, cycles_param, phases, cont_phases, param_phases, cont_param_phases
 
 
-def mark_nino_periods(list_qb, cycles, ann, synch_function, comp_function, threshold, log = False, points = 3):
+def mark_nino_periods(list_qb, cycles, ann, synch_function, comp_function, threshold, ratios = None, log = False, points = 3, 
+    debug = False):
     # get synch index
-    synch_idx = synch_function(list_qb, points = points)
+    synch_idx = synch_function(list_qb, ratios = ratios, points = points)
     if log:
         synch_idx = np.log(synch_idx)
     assert ann.shape[0] == synch_idx.shape[0]
@@ -106,15 +107,20 @@ def mark_nino_periods(list_qb, cycles, ann, synch_function, comp_function, thres
     for t in range(ann.shape[0]):
         if comp_function(synch_idx[t], threshold) and ann[t] > 0 and cycles[0][t] > 0:
             ninos[t] = 1
-        print t, synch_idx[t], comp_function(synch_idx[t], threshold), ann[t], cycles[0][t], ninos[t]
+        if debug:
+            print t, synch_idx[t], comp_function(synch_idx[t], threshold), ann[t], cycles[0][t], ninos[t]
 
     return ninos
 
 
 
 
-PERIODS = [i for i in range(20,27,2)]
-# PERIODS = [24, 26]
+PERIODS = [12] + [i for i in range(20,27,2)]
+# PERIODS = [12, 24]
+# RATIOS = [1, 2]
+# RATIOS = [1] + [2 for i in range(20,27,2)]
+# RATIOS = None
+RATIOS = [i/12. for i in PERIODS]
 colors = [cmap(f) for f in np.linspace(0, 1, len(PERIODS))]
 ndx = enso.select_date(date(1950, 1, 1), date(2010, 1, 1), apply_to_data = False)
 cycles, cycles_param, phases, cont_phases, param_phases, cont_param_phases = get_cycles_and_phases(PERIODS)
@@ -132,25 +138,26 @@ FROM = enso.get_date_from_ndx(0).year
 
 
 
-thresh = 0.7
-points = 5
+thresh = 0.03
+points = 10
 
 plt.figure(figsize=(15,8))
-diff = df.get_strobo_synch_index(cont_phases, points)
-p, = plt.plot(diff, label = "WVLT: circ. variance; points = %d" % points, color = 'k')
-marked_ninos = mark_nino_periods(cont_phases, cycles, enso_ann, synch_function = df.get_strobo_synch_index, 
-    comp_function = np.greater_equal, threshold = thresh, log = False, points = points)
-for t in range(marked_ninos.shape[0]):
-    if marked_ninos[t] == 1:
-        plt.plot(t, diff[t], 'o', color = p.get_color(), markersize = 7)
+# diff = df.get_gradient_index(phases, ratios = RATIOS, points = points)
+diff = np.log(df.get_intermittent_gradient_index(phases, ratios = RATIOS, include_second_order = True))
+p, = plt.plot(diff, label = "WVLT: mean gradient; points = %d" % points, color = 'k')
+marked_ninos = mark_nino_periods(phases, cycles, enso_ann, synch_function = df.get_gradient_index, 
+    comp_function = np.less_equal, threshold = thresh, log = False, points = points, ratios = RATIOS)
+# for t in range(marked_ninos.shape[0]):
+    # if marked_ninos[t] == 1:
+        # plt.plot(t, diff[t], 'o', color = p.get_color(), markersize = 7)
 
 plt.axhline(thresh, 0, 1, color = 'k', linewidth = 0.5)
-plt.plot(df.get_strobo_synch_index(cont_param_phases, points), '--', color = p.get_color(), label = "PARAM: circ. variance; points = %d" % points)
+# plt.plot(df.get_gradient_index(param_phases, ratios = RATIOS, points = points), '--', color = p.get_color(), label = "PARAM: mean gradient; points = %d" % points)
 for cyc, col in zip(cycles, colors):
     plt.plot(cyc, color = col, linewidth = 1)
 plot_enso_episodes(-4, 4)
 plt.xlim([0, enso.data.shape[0]])
 plt.xticks(np.arange(0, enso.data.shape[0]+1, ((TO-FROM)/10)*12), np.arange(FROM, TO+1, (TO-FROM)/10), rotation = 30)
-plt.legend()
-plt.title("CIRCULAR VARIANCE INDEX", size = 20)
+# plt.legend()
+# plt.title("MEAN GRADIENT INDEX", size = 20)
 plt.show()
